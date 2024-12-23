@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NGL System - Multi-Expert Medical Consultation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold text-center mb-8 text-blue-600">
+            Multi-Expert Medical Consultation System
+        </h1>
+
+        <!-- Question Input Section -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <textarea 
+                id="questionInput"
+                class="w-full p-4 border rounded-lg mb-4 h-32"
+                placeholder="Enter your medical question here..."></textarea>
+            
+            <div class="flex justify-center">
+                <button onclick="askExperts()" id="sendButton" class="bg-blue-500 text-white px-8 py-3 rounded-lg hover:bg-blue-600 font-semibold flex items-center space-x-2">
+                    <span>Send Question</span>
+                    <div id="loadingSpinner" class="hidden">
+                        <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </div>
+                </button>
+            </div>
+        </div>
+
+        <!-- Responses Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Expert Responses -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4 text-blue-500">Expert Responses</h2>
+                <div id="expertResponses" class="space-y-4">
+                    <div id="surgeonResponse" class="expert-response">
+                        <h3 class="font-semibold text-blue-400">Surgeon</h3>
+                        <div class="response-content space-y-4 mb-4"></div>
+                    </div>
+                    <div id="physiotherapistResponse" class="expert-response">
+                        <h3 class="font-semibold text-green-400">Physiotherapist</h3>
+                        <div class="response-content space-y-4 mb-4"></div>
+                    </div>
+                    <div id="doctorResponse" class="expert-response">
+                        <h3 class="font-semibold text-purple-400">Doctor</h3>
+                        <div class="response-content space-y-4 mb-4"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Aggregated Analysis -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4 text-green-500">NGL Aggregated Analysis</h2>
+                <div id="aggregatedAnalysis" class="space-y-4">
+                    <div class="border-l-4 border-green-500 pl-4 py-2">
+                        <h3 class="font-semibold mb-2">1. Agreed Viewpoints</h3>
+                        <div id="agreedViewpoints" class="text-sm"></div>
+                    </div>
+                    <div class="border-l-4 border-green-500 pl-4 py-2">
+                        <h3 class="font-semibold mb-2">2. Conflicting Viewpoints</h3>
+                        <div id="conflictingViewpoints" class="text-sm"></div>
+                    </div>
+                    <div class="border-l-4 border-green-500 pl-4 py-2">
+                        <h3 class="font-semibold mb-2">3. Resolved Conflicts</h3>
+                        <div id="resolvedConflicts" class="text-sm"></div>
+                    </div>
+                    <div class="border-l-4 border-green-500 pl-4 py-2">
+                        <h3 class="font-semibold mb-2">4. Isolated Viewpoints</h3>
+                        <div id="isolatedViewpoints" class="text-sm"></div>
+                    </div>
+                    <div class="border-l-4 border-green-500 pl-4 py-2">
+                        <h3 class="font-semibold mb-2">5. Confidence Scores</h3>
+                        <div id="confidenceScores" class="text-sm"></div>
+                    </div>
+                    <div class="border-l-4 border-green-500 pl-4 py-2">
+                        <h3 class="font-semibold mb-2">6. Summary</h3>
+                        <div id="summary" class="text-sm"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function clearResponses() {
+            // Clear expert responses
+            document.querySelectorAll('.response-content').forEach(container => {
+                container.innerHTML = '';
+            });
+            
+            // Clear aggregated analysis
+            document.getElementById('agreedViewpoints').innerHTML = '';
+            document.getElementById('conflictingViewpoints').innerHTML = '';
+            document.getElementById('resolvedConflicts').innerHTML = '';
+            document.getElementById('isolatedViewpoints').innerHTML = '';
+            document.getElementById('confidenceScores').innerHTML = '';
+            document.getElementById('summary').innerHTML = '';
+        }
+
+        function addResponse(expertType, question, response) {
+            const container = document.querySelector(`#${expertType.toLowerCase()}Response .response-content`);
+            if (!container) {
+                console.error(`Container not found for expert type: ${expertType}`);
+                return;
+            }
+            
+            const responseElement = document.createElement('div');
+            responseElement.className = 'border-l-4 border-gray-300 pl-4 py-2';
+            responseElement.innerHTML = `
+                <div class="font-semibold text-gray-700 mb-2">${expertType}</div>
+                <div class="text-sm text-gray-600 mb-2">Q: ${question}</div>
+                <div class="text-gray-800">A: ${response}</div>
+            `;
+            container.appendChild(responseElement);
+        }
+
+        function updateAggregatedAnalysis(data) {
+            // Update agreed viewpoints
+            const agreedViewpoints = document.getElementById('agreedViewpoints');
+            agreedViewpoints.innerHTML = data.consensus_points && data.consensus_points.length > 0 
+                ? data.consensus_points.map(point => `<div class="mb-2">• ${point}</div>`).join('')
+                : 'No agreed viewpoints found';
+
+            // Update conflicting viewpoints
+            const conflictingViewpoints = document.getElementById('conflictingViewpoints');
+            conflictingViewpoints.innerHTML = data.conflicting_viewpoints && data.conflicting_viewpoints.length > 0
+                ? data.conflicting_viewpoints.map(conflict => `
+                    <div class="mb-2">
+                        <div>• ${conflict.point1.expert}: ${conflict.point1.view}</div>
+                        <div>• ${conflict.point2.expert}: ${conflict.point2.view}</div>
+                    </div>`).join('')
+                : 'No conflicting viewpoints found';
+
+            // Update resolved conflicts
+            const resolvedConflicts = document.getElementById('resolvedConflicts');
+            resolvedConflicts.innerHTML = data.resolved_conflicts && data.resolved_conflicts.length > 0
+                ? data.resolved_conflicts.map(resolution => `
+                    <div class="mb-2">
+                        <div>• ${resolution.resolution}</div>
+                        <div class="text-sm text-gray-600">${resolution.explanation}</div>
+                    </div>`).join('')
+                : 'No conflicts to resolve';
+
+            // Update isolated viewpoints
+            const isolatedViewpoints = document.getElementById('isolatedViewpoints');
+            if (data.expert_specific_insights) {
+                const isolatedContent = Object.entries(data.expert_specific_insights)
+                    .filter(([_, points]) => points && points.length > 0)
+                    .map(([expert, points]) => `
+                        <div class="mb-2">
+                            <div class="font-semibold">${expert}:</div>
+                            ${points.map(point => `<div>• ${point}</div>`).join('')}
+                        </div>`).join('');
+                isolatedViewpoints.innerHTML = isolatedContent || 'No isolated viewpoints found';
+            } else {
+                isolatedViewpoints.innerHTML = 'No isolated viewpoints found';
+            }
+
+            // Update confidence scores
+            const confidenceScores = document.getElementById('confidenceScores');
+            if (data.confidence_scores) {
+                confidenceScores.innerHTML = Object.entries(data.confidence_scores)
+                    .map(([expert, score]) => `
+                        <div class="mb-2">
+                            <div class="flex justify-between mb-1">
+                                <span class="font-semibold">${expert}</span>
+                                <span>${(score * 100).toFixed(1)}%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                <div class="bg-green-600 h-2.5 rounded-full" style="width: ${score * 100}%"></div>
+                            </div>
+                        </div>`).join('');
+            } else {
+                confidenceScores.innerHTML = 'No confidence scores available';
+            }
+
+            // Update summary
+            const summary = document.getElementById('summary');
+            summary.innerHTML = data.summary || 'No summary available';
+        }
+
+        async function askExperts() {
+            const question = document.getElementById('questionInput').value;
+            if (!question) return;
+
+            // Show loading state
+            const button = document.getElementById('sendButton');
+            const spinner = document.getElementById('loadingSpinner');
+            button.disabled = true;
+            spinner.classList.remove('hidden');
+
+            try {
+                // Clear previous responses
+                clearResponses();
+
+                // Get expert responses
+                const response = await fetch('/api/ask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ question: question })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                // Add individual responses
+                if (data.responses) {
+                    Object.entries(data.responses).forEach(([expertType, response]) => {
+                        addResponse(expertType, question, response);
+                    });
+                }
+
+                // Get and update aggregated analysis
+                const aggregateResponse = await fetch('/api/aggregate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ question: question })
+                });
+
+                if (!aggregateResponse.ok) {
+                    throw new Error(`HTTP error! status: ${aggregateResponse.status}`);
+                }
+
+                const aggregateData = await aggregateResponse.json();
+                updateAggregatedAnalysis(aggregateData);
+
+            } catch (error) {
+                console.error('Error:', error);
+                // Show error message to user
+                const expertResponses = document.getElementById('expertResponses');
+                expertResponses.innerHTML = `
+                    <div class="text-red-500 p-4 border border-red-300 rounded">
+                        Error: Failed to get responses. Please try again.
+                    </div>`;
+            } finally {
+                // Hide loading state
+                button.disabled = false;
+                spinner.classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html> 
